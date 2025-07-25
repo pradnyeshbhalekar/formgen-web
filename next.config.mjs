@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-
-  output: 'standalone', // required for Render
+  // Add any Next.js config here
 };
 
 export default nextConfig;
