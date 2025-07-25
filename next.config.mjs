@@ -1,9 +1,5 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  // swcMinify: true,  <-- REMOVE this if you're using Next 15
+export default {
   experimental: {
-    serverActions: true,
-  },
+    serverActions: {}
+  }
 };
-
-export default nextConfig;

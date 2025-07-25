@@ -17,11 +17,12 @@
     "react-dom": "18.2.0",
     "serve": "^14.2.4",
     "tailwindcss": "^4.1.11"
-
   },
-
   "engines": {
     "node": ">=18.0.0 <19",
     "npm": ">=9.0.0 <10"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.11"
   }
 }
