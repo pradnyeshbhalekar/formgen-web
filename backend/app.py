@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from pyformgen.react_generator import generate_react_form  # ✅ CORRECT
 import tempfile
 from flask_cors import CORS
@@ -7,6 +7,18 @@ import os
 
 app = Flask(__name__)
 CORS(app) 
+
+@app.route('/')
+def index():
+    return send_from_directory(app.static_folder, 'index.html')
+
+@app.route('/<path:path>')
+def serve_file(path):
+    if os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+    else:
+        return send_from_directory(app.static_folder, 'index.html')
+
 
 @app.route('/generatedOutput', methods=['POST'])
 def generate_output():
