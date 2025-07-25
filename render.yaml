@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: formgen-web
+    env: python
+    buildCommand: |
+      cd frontend && npm install && npm run build
+    startCommand: gunicorn app:app
+    region: oregon
+    buildFilter:
+      paths:
+        - app.py
+        - requirements.txt
+        - frontend/**

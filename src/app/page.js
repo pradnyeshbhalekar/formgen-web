@@ -1,103 +1,294 @@
-import Image from "next/image";
+"use client"
+import React, { useState } from 'react';
+import { Github, Copy, Code2, Package } from 'lucide-react';
 
-export default function Home() {
+const FormGenerator = () => {
+  const [jsonInput, setJsonInput] = useState(`{
+    "first_name": {
+    "label": "First Name",
+    "type": "text",
+    "placeholder": "Enter your first name",
+    "required": true
+  },
+  "age": {
+    "label": "Age",
+    "type": "number",
+    "placeholder": "Enter your age",
+    "required": true,
+    "min": 0
+  },
+  "gender": {
+    "label": "Gender",
+    "type": "select",
+    "required": true,
+    "options": [
+      { "value": "male", "label": "Male" },
+      { "value": "female", "label": "Female" },
+      { "value": "other", "label": "Other" }
+    ]
+  },
+  "subscribe": {
+    "label": "Subscribe to Newsletter",
+    "type": "checkbox",
+    "required": false
+  }
+}`);
+
+  const [generatedJSX, setGeneratedJSX] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [isValidJson, setIsValidJson] = useState(true);
+  const [copySuccess, setCopySuccess] = useState(false);
+
+  const validateJson = (input) => {
+    try {
+      JSON.parse(input);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+
+
+  const generateForm = async () => {
+    if (!validateJson(jsonInput)) {
+      setError('Invalid JSON format');
+      setIsValidJson(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+    setIsValidJson(true);
+
+    try {
+      // Call the actual API endpoint
+      const response = await fetch('http://127.0.0.1:5000/generatedOutput', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonInput
+      });
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setGeneratedJSX(data.jsx || 'No JSX returned from API');
+    } catch (err) {
+      setError(`Failed to generate form: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleJsonChange = (e) => {
+    const value = e.target.value;
+    setJsonInput(value);
+    setIsValidJson(validateJson(value));
+    if (error) setError('');
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const start = e.target.selectionStart;
+      const end = e.target.selectionEnd;
+      const value = e.target.value;
+      const newValue = value.substring(0, start) + '  ' + value.substring(end);
+      setJsonInput(newValue);
+      setTimeout(() => {
+        e.target.selectionStart = e.target.selectionEnd = start + 2;
+      }, 0);
+    } else if (e.key === '{') {
+      e.preventDefault();
+      const start = e.target.selectionStart;
+      const end = e.target.selectionEnd;
+      const value = e.target.value;
+      const newValue = value.substring(0, start) + '{}' + value.substring(end);
+      setJsonInput(newValue);
+      setTimeout(() => {
+        e.target.selectionStart = e.target.selectionEnd = start + 1;
+      }, 0);
+    } else if (e.key === '[') {
+      e.preventDefault();
+      const start = e.target.selectionStart;
+      const end = e.target.selectionEnd;
+      const value = e.target.value;
+      const newValue = value.substring(0, start) + '[]' + value.substring(end);
+      setJsonInput(newValue);
+      setTimeout(() => {
+        e.target.selectionStart = e.target.selectionEnd = start + 1;
+      }, 0);
+    } else if (e.key === '"') {
+      e.preventDefault();
+      const start = e.target.selectionStart;
+      const end = e.target.selectionEnd;
+      const value = e.target.value;
+      const newValue = value.substring(0, start) + '""' + value.substring(end);
+      setJsonInput(newValue);
+      setTimeout(() => {
+        e.target.selectionStart = e.target.selectionEnd = start + 1;
+      }, 0);
+    }
+  };
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(generatedJSX);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.js
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen bg-gray-50">
+      {/* Navbar */}
+      <nav className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-2">
+              <div className="bg-blue-600 p-2 rounded-lg">
+                <Code2 className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-gray-900 text-xl font-bold">FormGen</span>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <a 
+                href="https://github.com/pradnyeshbhalekar/formgen"
+                className="flex items-center space-x-2 text-gray-700 hover:bg-gray-100 px-3 py-2 rounded-lg transition-all duration-300"
+              >
+                <Github className="w-5 h-5" />
+                <span>GitHub</span>
+              </a>
+              <a 
+                href="https://pypi.org/project/pyformgen/"
+                className="flex items-center space-x-2 text-gray-700 hover:bg-gray-100 px-3 py-2 rounded-lg transition-all duration-300"
+              >
+                <Package className="w-5 h-5" />
+                <span>PyPI</span>
+              </a>
+            </div>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </nav>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-8rem)]">
+          
+          {/* Left Panel - JSON Input */}
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden flex flex-col">
+            <div className="bg-gray-100 border-b border-gray-200 p-4 flex items-center space-x-2">
+              <Code2 className="w-5 h-5 text-gray-700" />
+              <h2 className="text-lg font-semibold text-gray-900">JSON Schema Input</h2>
+            </div>
+            
+            <div className="flex-1 flex flex-col">
+              <textarea
+                value={jsonInput}
+                onChange={handleJsonChange}
+                onKeyDown={handleKeyDown}
+                className={`flex-1 p-4 font-mono text-sm resize-none border-none outline-none text-gray-900 ${
+                  !isValidJson ? 'border-l-4 border-red-500 bg-red-50' : 'bg-white'
+                }`}
+                placeholder="Enter your JSON schema here..."
+                style={{ fontFamily: 'Monaco, Consolas, "Courier New", monospace' }}
+              />
+              
+              <button
+                onClick={generateForm}
+                disabled={isLoading || !isValidJson}
+                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white p-4 font-semibold flex items-center justify-center space-x-2 transition-colors"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    <span>Generating...</span>
+                  </>
+                ) : (
+                  <>
+                    <Code2 className="w-5 h-5" />
+                    <span>Generate React Form</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Right Panel - JSX Output */}
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden flex flex-col">
+            <div className="bg-gray-100 border-b border-gray-200 p-4 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Code2 className="w-5 h-5 text-gray-700" />
+                <h2 className="text-lg font-semibold text-gray-900">Generated React JSX</h2>
+              </div>
+              {generatedJSX && (
+                <button
+                  onClick={copyToClipboard}
+                  className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-white font-medium transition-all duration-200 hover:scale-105 active:scale-95"
+                >
+                  <Copy className="w-4 h-4" />
+                  <span>{copySuccess ? 'Copied!' : 'Copy Code'}</span>
+                </button>
+              )}
+            </div>
+            
+            <div className="flex-1 overflow-hidden">
+              {error && (
+                <div className="bg-red-50 border-l-4 border-red-500 p-4 flex items-center space-x-2">
+                  <AlertCircle className="w-5 h-5 text-red-500" />
+                  <span className="text-red-700">{error}</span>
+                </div>
+              )}
+              
+              {isLoading && (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <div className="w-12 h-12 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-gray-600">Calling API: http://127.0.0.1:5000/generatedOutput</p>
+                  </div>
+                </div>
+              )}
+              
+              {!isLoading && !error && generatedJSX && (
+                <div className="h-full overflow-auto bg-gray-900">
+                  <pre className="text-cyan-400 p-4 text-sm leading-relaxed h-full overflow-auto">
+                    <code>{generatedJSX}</code>
+                  </pre>
+                </div>
+              )}
+              
+              {!isLoading && !error && !generatedJSX && (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                  <div className="text-center">
+                    <Code2 className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                    <p>Generated JSX will appear here</p>
+                    <p className="text-sm mt-2">Enter a valid JSON schema and click "Generate"</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Info Section */}
+        <div className="mt-8 bg-white rounded-xl shadow-lg border border-gray-200 p-6 text-center">
+          <h3 className="text-xl font-semibold mb-2 text-gray-900">Powered by pyformgen Python Library</h3>
+          <p className="text-gray-600">
+            FormGen uses the pyformgen library to automatically convert JSON schemas into production-ready React forms.
+            No manual coding required - just paste your schema and get instant JSX output!
+          </p>
+        </div>
+      </div>
     </div>
   );
-}
+};
+
+export default FormGenerator;
