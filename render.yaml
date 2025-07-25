@@ -1,17 +1,25 @@
 services:
-  - type: web
-    name: formgen-web
-    env: python
+  - type: static
+    name: formgen-frontend
+    env: static
     buildCommand: |
       npm install
       npm run build
-      pip install -r backend/requirements.txt
+    staticPublishPath: out
+    buildFilter:
+      paths:
+        - src/**
+        - public/**
+        - package.json
+        - next.config.mjs
+
+  - type: web
+    name: formgen-api
+    env: python
+    buildCommand: pip install -r backend/requirements.txt
     startCommand: gunicorn app:app -w 1 --chdir backend
     region: oregon
     buildFilter:
       paths:
         - backend/**
-        - src/**
-        - public/**
-        - package.json
-        - render.yaml
+        - backend/requirements.txt
