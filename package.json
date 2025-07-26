@@ -3,12 +3,12 @@
   "type": "module",
   "version": "0.1.0",
   "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "serve start",
-    "lint": "next lint"
-  },
+ "scripts": {
+  "dev": "next dev",
+  "build": "next build",
+  "start": "next start",
+  "lint": "next lint"
+},
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.11",
     "autoprefixer": "^10.4.21",
