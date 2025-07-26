@@ -1,11 +1,11 @@
 services:
-  - type: static
+  - type: web
     name: formgen-frontend
-    env: static
+    env: node
     buildCommand: |
       npm install
       npm run build
-    staticPublishPath: out
+    startCommand: npm start
     buildFilter:
       paths:
         - src/**
@@ -17,7 +17,7 @@ services:
     name: formgen-api
     env: python
     buildCommand: pip install -r backend/requirements.txt
-    startCommand: gunicorn app:app -w 1 --chdir backend
+    startCommand: gunicorn backend.app:app
     region: oregon
     buildFilter:
       paths:
