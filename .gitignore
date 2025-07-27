@@ -1,0 +1,53 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+*.eggs/
+*.log
+*.coverage
+.coverage.*
+.cache/
+.pytest_cache/
+.env
+.venv
+env/
+venv/
+pip-wheel-metadata/
+dist/
+build/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+bun.lockb
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.next/
+out/
+
+# VSCode / IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Others
+*.bak
+*.swp
+*.tmp
+
+# Ignore generated files
+GeneratedForm.jsx
+
+# Subproject-specific - keep this generic unless overridden in sub .gitignore
+formgen-backend/__pycache__/
+formgen-frontend/node_modules/
