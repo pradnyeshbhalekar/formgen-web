@@ -1,6 +1,6 @@
 "use client"
 import React, { useState } from 'react';
-import { Github, Copy, Package, AlertCircle, Moon, Sun, Code2 } from 'lucide-react';
+import { Github, Copy, Package,Braces, AlertCircle, Moon, Sun, Mail, ExternalLink } from 'lucide-react';
 
 const FormGenerator = () => {
   const [jsonInput, setJsonInput] = useState(`{
@@ -102,16 +102,75 @@ const FormGenerator = () => {
   };
 
   const handleKeyDown = (e) => {
+    const start = e.target.selectionStart;
+    const end = e.target.selectionEnd;
+    const value = e.target.value;
+
+    // Handle Tab for indentation
     if (e.key === 'Tab') {
       e.preventDefault();
-      const start = e.target.selectionStart;
-      const end = e.target.selectionEnd;
-      const value = e.target.value;
       const newValue = value.substring(0, start) + '  ' + value.substring(end);
       setJsonInput(newValue);
       setTimeout(() => {
         e.target.selectionStart = e.target.selectionEnd = start + 2;
       }, 0);
+      return;
+    }
+
+    // Auto-closing brackets, braces, and quotes
+    const autoCloseMap = {
+      '{': '}',
+      '[': ']',
+      '(': ')',
+      '"': '"',
+      "'": "'"
+    };
+
+    if (autoCloseMap[e.key]) {
+      e.preventDefault();
+      const closeChar = autoCloseMap[e.key];
+      
+      // For quotes, check if we're closing an existing quote
+      if ((e.key === '"' || e.key === "'") && value[start] === e.key) {
+        // Move cursor past the existing quote
+        e.target.selectionStart = e.target.selectionEnd = start + 1;
+        return;
+      }
+
+      const newValue = value.substring(0, start) + e.key + closeChar + value.substring(end);
+      setJsonInput(newValue);
+      setTimeout(() => {
+        e.target.selectionStart = e.target.selectionEnd = start + 1;
+      }, 0);
+      return;
+    }
+
+    // Handle Enter key for auto-indentation
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const lines = value.substring(0, start).split('\n');
+      const currentLine = lines[lines.length - 1];
+      const indentMatch = currentLine.match(/^(\s*)/);
+      const currentIndent = indentMatch ? indentMatch[1] : '';
+      
+      // Add extra indent if the previous character is an opening bracket
+      const prevChar = value[start - 1];
+      const extraIndent = (prevChar === '{' || prevChar === '[') ? '  ' : '';
+      
+      const newValue = value.substring(0, start) + '\n' + currentIndent + extraIndent + value.substring(end);
+      setJsonInput(newValue);
+      setTimeout(() => {
+        e.target.selectionStart = e.target.selectionEnd = start + 1 + currentIndent.length + extraIndent.length;
+      }, 0);
+      return;
+    }
+
+    // Handle closing brackets - skip if next character is the same
+    const closingChars = ['}', ']', ')'];
+    if (closingChars.includes(e.key) && value[start] === e.key) {
+      e.preventDefault();
+      e.target.selectionStart = e.target.selectionEnd = start + 1;
+      return;
     }
   };
 
@@ -137,7 +196,7 @@ const FormGenerator = () => {
     text: '#1e293b',
     textLight: '#64748b',
     border: '#e2e8f0',
-    primary: '#8b5cf6',
+    primary: '#4D3A6E',
     secondary: '#06b6d4',
     success: '#10b981',
     danger: '#ef4444',
@@ -151,7 +210,7 @@ const FormGenerator = () => {
     text: '#ffffff',         // Pure white text
     textLight: '#b3b3b3',    // Light gray for secondary text
     border: '#404040',       // Subtle border in dark gray
-    primary: '#a855f7',      // Keep the purple
+    primary: '#956CE0',      // Keep the purple
     secondary: '#22d3ee',    // Keep the cyan
     success: '#10b981',      // Keep the green
     danger: '#f87171',       // Keep the red
@@ -204,7 +263,7 @@ const FormGenerator = () => {
         }
         
         .logo-icon {
-          background: linear-gradient(135deg, ${theme.primary}, ${theme.secondary});
+          background-color: ${theme.primary};
           padding: 0.5rem;
           border-radius: 0.5rem;
           display: flex;
@@ -217,6 +276,7 @@ const FormGenerator = () => {
           font-size: 1.5rem;
           font-weight: 800;
           margin: 0;
+          font-family: 'SF Mono', 'Monaco', 'Consolas', 'Roboto Mono', monospace;
         }
         
         .nav-links {
@@ -231,9 +291,10 @@ const FormGenerator = () => {
           gap: 0.5rem;
           color: ${theme.textLight};
           text-decoration: none;
-          padding: 0.75rem 1rem;
+          padding: 0.625rem 0.875rem;
           border-radius: 0.5rem;
           transition: all 0.2s ease;
+          font-size: 0.9rem;
         }
         
         .nav-link:hover {
@@ -286,7 +347,7 @@ const FormGenerator = () => {
           flex-direction: column;
           box-shadow: 0 4px 6px -1px rgba(0, 0, 0, ${isDarkMode ? '0.3' : '0.1'});
           transition: all 0.3s ease;
-          height: fit-content;
+          height: 500px;
         }
         
         .panel:hover {
@@ -318,23 +379,25 @@ const FormGenerator = () => {
         
         .json-logo {
           color: ${theme.warning};
-          font-family: 'Monaco', 'Consolas', monospace;
-          font-weight: bold;
-          font-size: 1.5rem;
+          font-family: 'SF Mono', 'Monaco', 'Consolas', 'Roboto Mono', monospace;
+          font-weight: 700;
+          font-size: 1.4rem;
+          letter-spacing: -0.02em;
         }
         
         .jsx-logo {
           color: ${theme.secondary};
-          font-family: 'Monaco', 'Consolas', monospace;
-          font-weight: bold;
-          font-size: 1.5rem;
+          font-family: 'SF Mono', 'Monaco', 'Consolas', 'Roboto Mono', monospace;
+          font-weight: 700;
+          font-size: 1.4rem;
+          letter-spacing: -0.02em;
         }
         
         .textarea {
           width: 100%;
-          height: 400px;
+          flex: 1;
           padding: 1rem;
-          font-family: 'Monaco', 'Consolas', monospace;
+          font-family: 'SF Mono', 'Monaco', 'Consolas', 'Roboto Mono', monospace;
           font-size: 0.875rem;
           line-height: 1.5;
           resize: none;
@@ -376,11 +439,12 @@ const FormGenerator = () => {
         }
         
         .copy-button {
-          background: linear-gradient(135deg, ${theme.primary}, ${theme.secondary});
+          background-color: ${theme.primary};
           color: white;
-          padding: 0.75rem 1rem;
+          padding: 0.625rem 1.125rem;
           border-radius: 0.5rem;
-          font-weight: 600;
+          font-weight: 500;
+          font-size: 0.875rem;
           border: none;
           cursor: pointer;
           transition: all 0.2s ease;
@@ -390,12 +454,12 @@ const FormGenerator = () => {
         }
         
         .copy-button:hover {
+          background-color: ${isDarkMode ? '#9333ea' : '#7c3aed'};
           transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
         }
         
         .output-area {
-          height: 400px;
+          flex: 1;
           overflow: hidden;
         }
         
@@ -472,27 +536,78 @@ const FormGenerator = () => {
           color: ${theme.border};
         }
         
-        .info-section {
-          margin-top: 2rem;
+        .footer {
           background-color: ${theme.cardBg};
-          border-radius: 1rem;
-          border: 1px solid ${theme.border};
-          padding: 2rem;
-          text-align: center;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, ${isDarkMode ? '0.3' : '0.1'});
+          border-top: 1px solid ${theme.border};
+          padding: 2rem 1.5rem;
+          margin-top: 2rem;
         }
         
-        .info-title {
+        .footer-content {
+          max-width: 1400px;
+          margin: 0 auto;
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 2rem;
+        }
+        
+        @media (min-width: 768px) {
+          .footer-content {
+            grid-template-columns: 2fr 1fr;
+          }
+        }
+        
+        .footer-section h3 {
           color: ${theme.text};
           font-size: 1.25rem;
           font-weight: 700;
-          margin-bottom: 0.5rem;
+          margin-bottom: 1rem;
         }
         
-        .info-text {
+        .footer-section p {
           color: ${theme.textLight};
-          margin: 0;
+          margin: 0 0 1.5rem 0;
           line-height: 1.6;
+        }
+        
+        .footer-links {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+        
+        .footer-link {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          color: ${theme.textLight};
+          text-decoration: none;
+          padding: 0.75rem;
+          border-radius: 0.5rem;
+          transition: all 0.2s ease;
+          border: 1px solid ${theme.border};
+        }
+        
+        .footer-link:hover {
+          background-color: ${isDarkMode ? '#404040' : '#f1f5f9'};
+          color: ${theme.primary};
+          border-color: ${theme.primary};
+        }
+        
+        .footer-link-text {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+        
+        .footer-link-title {
+          font-weight: 600;
+          font-size: 0.875rem;
+        }
+        
+        .footer-link-desc {
+          font-size: 0.75rem;
+          opacity: 0.8;
         }
         
         @media (max-width: 768px) {
@@ -506,7 +621,11 @@ const FormGenerator = () => {
           
           .nav-link {
             padding: 0.5rem;
-            font-size: 0.875rem;
+            font-size: 0.8rem;
+          }
+          
+          .nav-link span {
+            display: none;
           }
           
           .main-content {
@@ -526,19 +645,23 @@ const FormGenerator = () => {
             <div className="navbar-inner">
               <div className="logo">
                 <div className="logo-icon">
-                  <Code2 style={{ width: '1.5rem', height: '1.5rem', color: 'white' }} />
+                  <Braces style={{ width: '1.5rem', height: '1.5rem', color: 'white' }} />
                 </div>
                 <span className="logo-text">FormGen</span>
               </div>
               
               <div className="nav-links">
-                <a href="https://github.com/pradnyeshbhalekar/formgen" className="nav-link">
-                  <Github size={20} />
+                <a href="https://github.com/pradnyeshbhalekar/formgen" className="nav-link" target="_blank" rel="noopener noreferrer">
+                  <Github size={18} />
                   <span>GitHub</span>
                 </a>
-                <a href="https://pypi.org/project/pyformgen/" className="nav-link">
-                  <Package size={20} />
+                <a href="https://pypi.org/project/pyformgen/" className="nav-link" target="_blank" rel="noopener noreferrer">
+                  <Package size={18} />
                   <span>PyPI</span>
+                </a>
+                <a href="mailto:pradnyeshbhalekar78@gmail.com" className="nav-link">
+                  <Mail size={18} />
+                  <span>Contact</span>
                 </a>
                 <button onClick={toggleDarkMode} className="theme-toggle">
                   {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
@@ -561,7 +684,7 @@ const FormGenerator = () => {
                 </div>
               </div>
               
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                 <textarea
                   value={jsonInput}
                   onChange={handleJsonChange}
@@ -617,7 +740,7 @@ const FormGenerator = () => {
                   <div className="loading">
                     <div className="loading-content">
                       <div className="spinner"></div>
-                      <p>Calling API: {import.meta.env.VITE_BACKENDURI}/generatedOutput</p>
+                      <p>Generating Output.....</p>
                     </div>
                   </div>
                 )}
@@ -645,18 +768,51 @@ const FormGenerator = () => {
             </div>
           </div>
 
-          {/* Info Section */}
-          <div className="info-section">
-            <h3 className="info-title">Powered by pyformgen Python Library</h3>
-            <p className="info-text">
-              FormGen uses the pyformgen library to automatically convert JSON schemas into production-ready React forms.
-              No manual coding required - just paste your schema and get instant JSX output!
-            </p>
-          </div>
+          {/* Footer */}
+          <footer className="footer">
+            <div className="footer-content">
+              <div className="footer-section">
+                <h3>Powered by pyformgen Python Library</h3>
+                <p>
+                  FormGen uses the pyformgen library to automatically convert JSON schemas into production-ready React forms.
+                  No manual coding required - just paste your schema and get instant JSX output!
+                </p>
+              </div>
+              
+              <div className="footer-section">
+                <h3>Connect & Resources</h3>
+                <div className="footer-links">
+                  <a href="https://github.com/pradnyeshbhalekar/formgen" className="footer-link" target="_blank" rel="noopener noreferrer">
+                    <Github size={20} />
+                    <div className="footer-link-text">
+                      <span className="footer-link-title">View Source Code</span>
+                      <span className="footer-link-desc">Contribute to the project</span>
+                    </div>
+                  </a>
+                  
+                  <a href="https://pypi.org/project/pyformgen/" className="footer-link" target="_blank" rel="noopener noreferrer">
+                    <Package size={20} />
+                    <div className="footer-link-text">
+                      <span className="footer-link-title">Python Package</span>
+                      <span className="footer-link-desc">Install via pip</span>
+                    </div>
+                  </a>
+                  
+                  <a href="mailto:pradnyeshbhalekar78@gmail.com" className="footer-link">
+                    <Mail size={20} />
+                    <div className="footer-link-text">
+                      <span className="footer-link-title">Contact Developer</span>
+                      <span className="footer-link-desc">Get support or feedback</span>
+                    </div>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </footer>
         </div>
       </div>
     </div>
   );
 };
 
-export default FormGenerator; 
+export default FormGenerator;
