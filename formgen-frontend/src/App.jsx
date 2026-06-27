@@ -1,9 +1,26 @@
-"use client"
-import React, { useState } from 'react';
-import { Github, Copy, Package,Braces, AlertCircle, Moon, Sun, Mail, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Github, Copy, Package, AlertCircle, Moon, Sun, Mail, BookOpen, ArrowRight, Zap, Layers, Check, Code2 } from 'lucide-react';
+import CodeMirror, { EditorView } from '@uiw/react-codemirror';
+import { json } from '@codemirror/lang-json';
+import { oneDark } from '@codemirror/theme-one-dark';
+import './index.css';
 
-const FormGenerator = () => {
-  const [jsonInput, setJsonInput] = useState(`{
+// ── Logo — </> mark ───────────────────────────────────────────────────────────
+function Logo({ size = 26 }) {
+  return (
+    <svg width={size} height={size * 0.6} viewBox="0 0 48 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* < */}
+      <path d="M13 4L3 14L13 24" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+      {/* / */}
+      <path d="M20 24L28 4" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+      {/* > */}
+      <path d="M35 4L45 14L35 24" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+// ── Default JSON ──────────────────────────────────────────────────────────────
+const DEFAULT_JSON = `{
   "first_name": {
     "label": "First Name",
     "type": "text",
@@ -32,787 +49,632 @@ const FormGenerator = () => {
     "type": "checkbox",
     "required": false
   }
-}`);
+}`;
 
-  const [generatedJSX, setGeneratedJSX] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [isValidJson, setIsValidJson] = useState(true);
-  const [copySuccess, setCopySuccess] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+// ── Docs data ─────────────────────────────────────────────────────────────────
+const FIELD_TYPES = [
+  {
+    type: 'text', desc: 'Single-line text input for short strings like names, usernames, or search queries.',
+    attrs: [
+      { name: 'placeholder', type: 'string', desc: 'Hint shown when the field is empty.' },
+      { name: 'required', type: 'boolean', desc: 'Makes the field mandatory.' },
+      { name: 'minlength', type: 'string', desc: 'Minimum number of characters.' },
+      { name: 'maxlength', type: 'string', desc: 'Maximum number of characters.' },
+      { name: 'pattern', type: 'string', desc: 'Regex the value must match.' },
+      { name: 'disabled', type: 'boolean', desc: 'Disables the input.' },
+      { name: 'readonly', type: 'boolean', desc: 'Makes the input read-only.' },
+    ],
+    example: `"username": {\n  "label": "Username",\n  "type": "text",\n  "placeholder": "Enter username",\n  "required": true,\n  "maxlength": "20"\n}`,
+    output: `<div>\n  <label>Username</label>\n  <input\n    name="username"\n    type="text"\n    value={username}\n    onChange={(e) => setUsername(e.target.value)}\n    placeholder="Enter username"\n    required\n    maxlength="20"\n  />\n</div>`,
+  },
+  {
+    type: 'number', desc: 'Numeric input. Restricts entry to numbers and supports min, max, and step.',
+    attrs: [
+      { name: 'placeholder', type: 'string', desc: 'Hint shown when the field is empty.' },
+      { name: 'required', type: 'boolean', desc: 'Makes the field mandatory.' },
+      { name: 'min', type: 'string', desc: 'Minimum allowed value.' },
+      { name: 'max', type: 'string', desc: 'Maximum allowed value.' },
+      { name: 'step', type: 'string', desc: 'Increment step between values.' },
+      { name: 'disabled', type: 'boolean', desc: 'Disables the input.' },
+    ],
+    example: `"age": {\n  "label": "Age",\n  "type": "number",\n  "min": "0",\n  "max": "120",\n  "required": true\n}`,
+    output: `<div>\n  <label>Age</label>\n  <input\n    name="age"\n    type="number"\n    value={age}\n    onChange={(e) => setAge(e.target.value)}\n    min="0"\n    max="120"\n    required\n  />\n</div>`,
+  },
+  {
+    type: 'email', desc: 'Email input with built-in browser format validation (must contain @ and a domain).',
+    attrs: [
+      { name: 'placeholder', type: 'string', desc: 'Hint shown when the field is empty.' },
+      { name: 'required', type: 'boolean', desc: 'Makes the field mandatory.' },
+      { name: 'disabled', type: 'boolean', desc: 'Disables the input.' },
+    ],
+    example: `"email": {\n  "label": "Email Address",\n  "type": "email",\n  "placeholder": "you@example.com",\n  "required": true\n}`,
+    output: `<div>\n  <label>Email Address</label>\n  <input\n    name="email"\n    type="email"\n    value={email}\n    onChange={(e) => setEmail(e.target.value)}\n    placeholder="you@example.com"\n    required\n  />\n</div>`,
+  },
+  {
+    type: 'password', desc: 'Password field — characters are masked. Use minlength to enforce strength.',
+    attrs: [
+      { name: 'placeholder', type: 'string', desc: 'Hint shown when the field is empty.' },
+      { name: 'required', type: 'boolean', desc: 'Makes the field mandatory.' },
+      { name: 'minlength', type: 'string', desc: 'Minimum number of characters.' },
+      { name: 'maxlength', type: 'string', desc: 'Maximum number of characters.' },
+      { name: 'disabled', type: 'boolean', desc: 'Disables the input.' },
+    ],
+    example: `"password": {\n  "label": "Password",\n  "type": "password",\n  "minlength": "8",\n  "required": true\n}`,
+    output: `<div>\n  <label>Password</label>\n  <input\n    name="password"\n    type="password"\n    value={password}\n    onChange={(e) => setPassword(e.target.value)}\n    minlength="8"\n    required\n  />\n</div>`,
+  },
+  {
+    type: 'select', desc: 'Dropdown menu. The options array is required — each item needs a value and label.',
+    attrs: [
+      { name: 'options', type: 'array', desc: 'Array of { value, label } pairs. Required.' },
+      { name: 'required', type: 'boolean', desc: 'Makes the field mandatory.' },
+      { name: 'disabled', type: 'boolean', desc: 'Disables the select.' },
+    ],
+    example: `"country": {\n  "label": "Country",\n  "type": "select",\n  "required": true,\n  "options": [\n    { "value": "us", "label": "United States" },\n    { "value": "in", "label": "India" }\n  ]\n}`,
+    output: `<div>\n  <label>Country</label>\n  <select\n    name="country"\n    value={country}\n    onChange={(e) => setCountry(e.target.value)}\n    required\n  >\n    <option value="us">United States</option>\n    <option value="in">India</option>\n  </select>\n</div>`,
+  },
+  {
+    type: 'checkbox', desc: 'Boolean toggle — checked or unchecked. Good for agreements or feature flags.',
+    attrs: [
+      { name: 'required', type: 'boolean', desc: 'Makes the checkbox mandatory (must be checked).' },
+      { name: 'disabled', type: 'boolean', desc: 'Disables the checkbox.' },
+    ],
+    example: `"terms": {\n  "label": "I agree to the Terms",\n  "type": "checkbox",\n  "required": true\n}`,
+    output: `<div>\n  <label>I agree to the Terms</label>\n  <input\n    name="terms"\n    type="checkbox"\n    value={terms}\n    onChange={(e) => setTerms(e.target.value)}\n    required\n  />\n</div>`,
+  },
+  {
+    type: 'date', desc: 'Native date picker. Use min/max to restrict the selectable date range.',
+    attrs: [
+      { name: 'required', type: 'boolean', desc: 'Makes the field mandatory.' },
+      { name: 'min', type: 'string', desc: 'Earliest selectable date (YYYY-MM-DD).' },
+      { name: 'max', type: 'string', desc: 'Latest selectable date (YYYY-MM-DD).' },
+      { name: 'disabled', type: 'boolean', desc: 'Disables the input.' },
+    ],
+    example: `"dob": {\n  "label": "Date of Birth",\n  "type": "date",\n  "required": true,\n  "max": "2006-01-01"\n}`,
+    output: `<div>\n  <label>Date of Birth</label>\n  <input\n    name="dob"\n    type="date"\n    value={dob}\n    onChange={(e) => setDob(e.target.value)}\n    max="2006-01-01"\n    required\n  />\n</div>`,
+  },
+  {
+    type: 'textarea', desc: 'Multi-line text input for longer content like bios, messages, or descriptions.',
+    attrs: [
+      { name: 'placeholder', type: 'string', desc: 'Hint shown when the field is empty.' },
+      { name: 'required', type: 'boolean', desc: 'Makes the field mandatory.' },
+      { name: 'minlength', type: 'string', desc: 'Minimum number of characters.' },
+      { name: 'maxlength', type: 'string', desc: 'Maximum number of characters.' },
+      { name: 'disabled', type: 'boolean', desc: 'Disables the input.' },
+      { name: 'readonly', type: 'boolean', desc: 'Makes the input read-only.' },
+    ],
+    example: `"bio": {\n  "label": "Bio",\n  "type": "textarea",\n  "placeholder": "Tell us about yourself",\n  "maxlength": "500"\n}`,
+    output: `<div>\n  <label>Bio</label>\n  <input\n    name="bio"\n    type="textarea"\n    value={bio}\n    onChange={(e) => setBio(e.target.value)}\n    placeholder="Tell us about yourself"\n    maxlength="500"\n  />\n</div>`,
+  },
+  {
+    type: 'tel', desc: 'Telephone number input. Use pattern to enforce a specific phone format.',
+    attrs: [
+      { name: 'placeholder', type: 'string', desc: 'Hint shown when the field is empty.' },
+      { name: 'required', type: 'boolean', desc: 'Makes the field mandatory.' },
+      { name: 'pattern', type: 'string', desc: 'Regex the phone number must match.' },
+      { name: 'disabled', type: 'boolean', desc: 'Disables the input.' },
+    ],
+    example: `"phone": {\n  "label": "Phone Number",\n  "type": "tel",\n  "placeholder": "+1 (555) 000-0000",\n  "pattern": "[+]?[0-9]{10,15}"\n}`,
+    output: `<div>\n  <label>Phone Number</label>\n  <input\n    name="phone"\n    type="tel"\n    value={phone}\n    onChange={(e) => setPhone(e.target.value)}\n    placeholder="+1 (555) 000-0000"\n    pattern="[+]?[0-9]{10,15}"\n  />\n</div>`,
+  },
+  {
+    type: 'url', desc: 'URL input with built-in validation — the value must start with http:// or https://.',
+    attrs: [
+      { name: 'placeholder', type: 'string', desc: 'Hint shown when the field is empty.' },
+      { name: 'required', type: 'boolean', desc: 'Makes the field mandatory.' },
+      { name: 'disabled', type: 'boolean', desc: 'Disables the input.' },
+    ],
+    example: `"website": {\n  "label": "Website",\n  "type": "url",\n  "placeholder": "https://example.com"\n}`,
+    output: `<div>\n  <label>Website</label>\n  <input\n    name="website"\n    type="url"\n    value={website}\n    onChange={(e) => setWebsite(e.target.value)}\n    placeholder="https://example.com"\n  />\n</div>`,
+  },
+  {
+    type: 'range', desc: 'Slider input for selecting a number within a range. Always pair with min and max.',
+    attrs: [
+      { name: 'min', type: 'string', desc: 'Minimum value of the slider.' },
+      { name: 'max', type: 'string', desc: 'Maximum value of the slider.' },
+      { name: 'step', type: 'string', desc: 'Increment between slider stops.' },
+      { name: 'required', type: 'boolean', desc: 'Makes the field mandatory.' },
+      { name: 'disabled', type: 'boolean', desc: 'Disables the slider.' },
+    ],
+    example: `"rating": {\n  "label": "Rating",\n  "type": "range",\n  "min": "1",\n  "max": "10",\n  "step": "1"\n}`,
+    output: `<div>\n  <label>Rating</label>\n  <input\n    name="rating"\n    type="range"\n    value={rating}\n    onChange={(e) => setRating(e.target.value)}\n    min="1"\n    max="10"\n    step="1"\n  />\n</div>`,
+  },
+  {
+    type: 'color', desc: 'Native color picker — lets the user pick any color from a palette.',
+    attrs: [
+      { name: 'required', type: 'boolean', desc: 'Makes the field mandatory.' },
+      { name: 'disabled', type: 'boolean', desc: 'Disables the picker.' },
+    ],
+    example: `"theme_color": {\n  "label": "Theme Color",\n  "type": "color"\n}`,
+    output: `<div>\n  <label>Theme Color</label>\n  <input\n    name="theme_color"\n    type="color"\n    value={theme_color}\n    onChange={(e) => setTheme_color(e.target.value)}\n  />\n</div>`,
+  },
+];
 
-  const validateJson = (input) => {
-    try {
-      JSON.parse(input);
-      return true;
-    } catch {
-      return false;
-    }
+const COMMON_ATTRS = [
+  { name: 'label', type: 'string', desc: 'Display label shown above the field.' },
+  { name: 'type', type: 'string', desc: 'Field type — see the types reference.' },
+  { name: 'required', type: 'boolean', desc: 'Marks the field as required. Use true/false.' },
+  { name: 'placeholder', type: 'string', desc: 'Hint text shown inside the input when empty.' },
+  { name: 'disabled', type: 'boolean', desc: 'Disables the field.' },
+  { name: 'readonly', type: 'boolean', desc: 'Makes the field read-only.' },
+  { name: 'min / max', type: 'string', desc: 'Min/max value for number, range, or date fields.' },
+  { name: 'minlength / maxlength', type: 'string', desc: 'Character length constraints for text fields.' },
+  { name: 'step', type: 'string', desc: 'Increment step for number/range fields.' },
+  { name: 'pattern', type: 'string', desc: 'Regex pattern for validation (text, tel, url).' },
+  { name: 'options', type: 'array', desc: 'Array of { value, label } — only for select type.' },
+];
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+function isValidJson(str) {
+  try { JSON.parse(str); return true; } catch { return false; }
+}
+
+// ── Home page ─────────────────────────────────────────────────────────────────
+const FEATURES = [
+  { icon: <Zap size={20} />, title: 'Instant generation', desc: 'Paste your schema and get working React JSX in seconds. No configuration needed.' },
+  { icon: <Code2 size={20} />, title: '12 field types', desc: 'text, number, email, password, select, checkbox, date, textarea, tel, url, range, color.' },
+  { icon: <Layers size={20} />, title: 'Any HTML attribute', desc: 'Every key in your schema (except label/type) is passed directly as an HTML attribute.' },
+  { icon: <Check size={20} />, title: 'Copy-paste ready', desc: 'Output includes useState hooks, onChange handlers, and a handleSubmit function.' },
+];
+
+const STEPS = [
+  { n: '01', title: 'Write a JSON schema', desc: 'Describe your form fields — their labels, types, and constraints — as a simple JSON object.' },
+  { n: '02', title: 'Click Generate', desc: 'The pyformgen backend converts your schema into a complete React component with state management.' },
+  { n: '03', title: 'Copy and use', desc: 'Paste the generated JSX into your project. Style it with your own CSS or design system.' },
+];
+
+const EXAMPLE_INPUT = `{
+  "email": {
+    "label": "Email",
+    "type": "email",
+    "required": true
+  },
+  "role": {
+    "label": "Role",
+    "type": "select",
+    "options": [
+      { "value": "admin", "label": "Admin" },
+      { "value": "user",  "label": "User"  }
+    ]
+  }
+}`;
+
+const EXAMPLE_OUTPUT = `import { useState } from 'react';
+
+export default function GeneratedForm() {
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    console.log({ email, role });
   };
-
-  const generateForm = async () => {
-    if (!validateJson(jsonInput)) {
-      setError('Invalid JSON format');
-      setIsValidJson(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError('');
-    setIsValidJson(true);
-
-    try {
-      // Parse the JSON input to ensure it's valid, then stringify it properly
-      const parsedJson = JSON.parse(jsonInput);
-      
-      const response = await fetch(`${import.meta.env.VITE_BACKENDURI}/generatedOutput`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(parsedJson)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`API Error ${response.status}: ${errorText || response.statusText}`);
-      }
-
-      const data = await response.json();
-      console.log(data);
-      setGeneratedJSX(data.jsx || 'No JSX returned from API');
-    } catch (err) {
-      if (err.name === 'TypeError' && err.message.includes('fetch')) {
-        setError('Network error: Unable to connect to the API. Please check your internet connection.');
-      } else if (err.message.includes('API Error')) {
-        setError(`Server error: ${err.message}`);
-      } else {
-        setError(`Failed to generate form: ${err.message}`);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleJsonChange = (e) => {
-    const value = e.target.value;
-    setJsonInput(value);
-    setIsValidJson(validateJson(value));
-    if (error) setError('');
-  };
-
-  const handleKeyDown = (e) => {
-    const start = e.target.selectionStart;
-    const end = e.target.selectionEnd;
-    const value = e.target.value;
-
-    // Handle Tab for indentation
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const newValue = value.substring(0, start) + '  ' + value.substring(end);
-      setJsonInput(newValue);
-      setTimeout(() => {
-        e.target.selectionStart = e.target.selectionEnd = start + 2;
-      }, 0);
-      return;
-    }
-
-    // Auto-closing brackets, braces, and quotes
-    const autoCloseMap = {
-      '{': '}',
-      '[': ']',
-      '(': ')',
-      '"': '"',
-      "'": "'"
-    };
-
-    if (autoCloseMap[e.key]) {
-      e.preventDefault();
-      const closeChar = autoCloseMap[e.key];
-      
-      // For quotes, check if we're closing an existing quote
-      if ((e.key === '"' || e.key === "'") && value[start] === e.key) {
-        // Move cursor past the existing quote
-        e.target.selectionStart = e.target.selectionEnd = start + 1;
-        return;
-      }
-
-      const newValue = value.substring(0, start) + e.key + closeChar + value.substring(end);
-      setJsonInput(newValue);
-      setTimeout(() => {
-        e.target.selectionStart = e.target.selectionEnd = start + 1;
-      }, 0);
-      return;
-    }
-
-    // Handle Enter key for auto-indentation
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const lines = value.substring(0, start).split('\n');
-      const currentLine = lines[lines.length - 1];
-      const indentMatch = currentLine.match(/^(\s*)/);
-      const currentIndent = indentMatch ? indentMatch[1] : '';
-      
-      // Add extra indent if the previous character is an opening bracket
-      const prevChar = value[start - 1];
-      const extraIndent = (prevChar === '{' || prevChar === '[') ? '  ' : '';
-      
-      const newValue = value.substring(0, start) + '\n' + currentIndent + extraIndent + value.substring(end);
-      setJsonInput(newValue);
-      setTimeout(() => {
-        e.target.selectionStart = e.target.selectionEnd = start + 1 + currentIndent.length + extraIndent.length;
-      }, 0);
-      return;
-    }
-
-    // Handle closing brackets - skip if next character is the same
-    const closingChars = ['}', ']', ')'];
-    if (closingChars.includes(e.key) && value[start] === e.key) {
-      e.preventDefault();
-      e.target.selectionStart = e.target.selectionEnd = start + 1;
-      return;
-    }
-  };
-
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(generatedJSX);
-      setCopySuccess(true);
-      setTimeout(() => setCopySuccess(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-    }
-  };
-
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
-  };
-
-  // Theme colors - Claude-inspired dark mode
-  const lightTheme = {
-    bg: '#f8fafc',
-    cardBg: '#ffffff',
-    headerBg: '#f1f5f9',
-    text: '#1e293b',
-    textLight: '#64748b',
-    border: '#e2e8f0',
-    primary: '#4D3A6E',
-    secondary: '#06b6d4',
-    success: '#10b981',
-    danger: '#ef4444',
-    warning: '#f59e0b'
-  };
-
-  const darkTheme = {
-    bg: '#191919',           // Deep charcoal like Claude
-    cardBg: '#2a2a2a',       // Slightly lighter charcoal for cards
-    headerBg: '#333333',     // Medium gray for headers
-    text: '#ffffff',         // Pure white text
-    textLight: '#b3b3b3',    // Light gray for secondary text
-    border: '#404040',       // Subtle border in dark gray
-    primary: '#956CE0',      // Keep the purple
-    secondary: '#22d3ee',    // Keep the cyan
-    success: '#10b981',      // Keep the green
-    danger: '#f87171',       // Keep the red
-    warning: '#fbbf24'       // Keep the yellow
-  };
-
-  const theme = isDarkMode ? darkTheme : lightTheme;
 
   return (
-    <div>
-      <style>{`
-        * {
-          box-sizing: border-box;
-        }
-        
-        body {
-          margin: 0;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
-        
-        .container {
-          min-height: 100vh;
-          background-color: ${theme.bg};
-          transition: background-color 0.3s ease;
-        }
-        
-        .navbar {
-          background-color: ${theme.cardBg};
-          border-bottom: 1px solid ${theme.border};
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-        
-        .navbar-content {
-          max-width: 1400px;
-          margin: 0 auto;
-          padding: 0 1rem;
-        }
-        
-        .navbar-inner {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          height: 4rem;
-        }
-        
-        .logo {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-        }
-        
-        .logo-icon {
-          background-color: ${theme.primary};
-          padding: 0.5rem;
-          border-radius: 0.5rem;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        
-        .logo-text {
-          color: ${theme.text};
-          font-size: 1.5rem;
-          font-weight: 800;
-          margin: 0;
-          font-family: 'SF Mono', 'Monaco', 'Consolas', 'Roboto Mono', monospace;
-        }
-        
-        .nav-links {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-        
-        .nav-link {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          color: ${theme.textLight};
-          text-decoration: none;
-          padding: 0.625rem 0.875rem;
-          border-radius: 0.5rem;
-          transition: all 0.2s ease;
-          font-size: 0.9rem;
-        }
-        
-        .nav-link:hover {
-          background-color: ${isDarkMode ? '#404040' : '#f1f5f9'};
-          color: ${theme.primary};
-        }
-        
-        .theme-toggle {
-          background: none;
-          border: 2px solid ${theme.border};
-          border-radius: 0.5rem;
-          padding: 0.75rem;
-          color: ${theme.text};
-          cursor: pointer;
-          transition: all 0.2s ease;
-          display: flex;
-          align-items: center;
-        }
-        
-        .theme-toggle:hover {
-          background-color: ${theme.primary};
-          color: white;
-          border-color: ${theme.primary};
-        }
-        
-        .main-content {
-          max-width: 1400px;
-          margin: 0 auto;
-          padding: 1.5rem;
-        }
-        
-        .grid {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 1.5rem;
-        }
-        
-        @media (min-width: 768px) {
-          .grid {
-            grid-template-columns: 1fr 1fr;
-          }
-        }
-        
-        .panel {
-          background-color: ${theme.cardBg};
-          border-radius: 1rem;
-          border: 1px solid ${theme.border};
-          overflow: hidden;
-          display: flex;
-          flex-direction: column;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, ${isDarkMode ? '0.3' : '0.1'});
-          transition: all 0.3s ease;
-          height: 500px;
-        }
-        
-        .panel:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, ${isDarkMode ? '0.4' : '0.15'});
-        }
-        
-        .panel-header {
-          background-color: ${theme.headerBg};
-          border-bottom: 1px solid ${theme.border};
-          padding: 1rem;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        }
-        
-        .panel-title {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-        
-        .panel-title h2 {
-          color: ${theme.text};
-          font-size: 1.125rem;
-          font-weight: 600;
-          margin: 0;
-        }
-        
-        .json-logo {
-          color: ${theme.warning};
-          font-family: 'SF Mono', 'Monaco', 'Consolas', 'Roboto Mono', monospace;
-          font-weight: 700;
-          font-size: 1.4rem;
-          letter-spacing: -0.02em;
-        }
-        
-        .jsx-logo {
-          color: ${theme.secondary};
-          font-family: 'SF Mono', 'Monaco', 'Consolas', 'Roboto Mono', monospace;
-          font-weight: 700;
-          font-size: 1.4rem;
-          letter-spacing: -0.02em;
-        }
-        
-        .textarea {
-          width: 100%;
-          flex: 1;
-          padding: 1rem;
-          font-family: 'SF Mono', 'Monaco', 'Consolas', 'Roboto Mono', monospace;
-          font-size: 0.875rem;
-          line-height: 1.5;
-          resize: none;
-          border: none;
-          outline: none;
-          color: ${theme.text};
-          background-color: ${theme.cardBg};
-        }
-        
-        .textarea-invalid {
-          border-left: 4px solid ${theme.danger};
-          background-color: ${isDarkMode ? '#4a2c2c' : '#fef2f2'};
-        }
-        
-        .generate-button {
-          background: linear-gradient(135deg, ${theme.success}, #059669);
-          color: white;
-          padding: 1rem 1.5rem;
-          font-weight: 600;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.75rem;
-          border: none;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          font-size: 1rem;
-        }
-        
-        .generate-button:hover:not(:disabled) {
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-        }
-        
-        .generate-button:disabled {
-          background: ${theme.textLight};
-          cursor: not-allowed;
-          transform: none;
-        }
-        
-        .copy-button {
-          background-color: ${theme.primary};
-          color: white;
-          padding: 0.625rem 1.125rem;
-          border-radius: 0.5rem;
-          font-weight: 500;
-          font-size: 0.875rem;
-          border: none;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-        
-        .copy-button:hover {
-          background-color: ${isDarkMode ? '#9333ea' : '#7c3aed'};
-          transform: translateY(-1px);
-        }
-        
-        .output-area {
-          flex: 1;
-          overflow: hidden;
-        }
-        
-        .error {
-          background-color: ${isDarkMode ? '#4a2c2c' : '#fef2f2'};
-          border-left: 4px solid ${theme.danger};
-          padding: 1rem 1.5rem;
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          color: ${theme.danger};
-        }
-        
-        .loading {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: 100%;
-          padding: 3rem;
-        }
-        
-        .loading-content {
-          text-align: center;
-          color: ${theme.textLight};
-        }
-        
-        .spinner {
-          width: 2rem;
-          height: 2rem;
-          border: 3px solid ${theme.border};
-          border-top: 3px solid ${theme.primary};
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-          margin: 0 auto 1rem;
-        }
-        
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        
-        .code-output {
-          height: 100%;
-          overflow: auto;
-          background-color: ${isDarkMode ? '#1a1a1a' : '#1e293b'};
-        }
-        
-        .code {
-          color: ${isDarkMode ? '#e6e6e6' : theme.secondary};
-          padding: 1.5rem;
-          font-size: 0.85rem;
-          line-height: 1.6;
-          font-family: 'Monaco', 'Consolas', monospace;
-          white-space: pre-wrap;
-          margin: 0;
-        }
-        
-        .empty-state {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: 100%;
-          padding: 3rem;
-          color: ${theme.textLight};
-        }
-        
-        .empty-state-content {
-          text-align: center;
-        }
-        
-        .empty-state-icon {
-          font-size: 4rem;
-          margin-bottom: 1rem;
-          color: ${theme.border};
-        }
-        
-        .footer {
-          background-color: ${theme.cardBg};
-          border-top: 1px solid ${theme.border};
-          padding: 2rem 1.5rem;
-          margin-top: 2rem;
-        }
-        
-        .footer-content {
-          max-width: 1400px;
-          margin: 0 auto;
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 2rem;
-        }
-        
-        @media (min-width: 768px) {
-          .footer-content {
-            grid-template-columns: 2fr 1fr;
-          }
-        }
-        
-        .footer-section h3 {
-          color: ${theme.text};
-          font-size: 1.25rem;
-          font-weight: 700;
-          margin-bottom: 1rem;
-        }
-        
-        .footer-section p {
-          color: ${theme.textLight};
-          margin: 0 0 1.5rem 0;
-          line-height: 1.6;
-        }
-        
-        .footer-links {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-        }
-        
-        .footer-link {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          color: ${theme.textLight};
-          text-decoration: none;
-          padding: 0.75rem;
-          border-radius: 0.5rem;
-          transition: all 0.2s ease;
-          border: 1px solid ${theme.border};
-        }
-        
-        .footer-link:hover {
-          background-color: ${isDarkMode ? '#404040' : '#f1f5f9'};
-          color: ${theme.primary};
-          border-color: ${theme.primary};
-        }
-        
-        .footer-link-text {
-          display: flex;
-          flex-direction: column;
-          gap: 0.25rem;
-        }
-        
-        .footer-link-title {
-          font-weight: 600;
-          font-size: 0.875rem;
-        }
-        
-        .footer-link-desc {
-          font-size: 0.75rem;
-          opacity: 0.8;
-        }
-        
-        @media (max-width: 768px) {
-          .logo-text {
-            display: none;
-          }
-          
-          .nav-links {
-            gap: 0.25rem;
-          }
-          
-          .nav-link {
-            padding: 0.5rem;
-            font-size: 0.8rem;
-          }
-          
-          .nav-link span {
-            display: none;
-          }
-          
-          .main-content {
-            padding: 1rem;
-          }
-          
-          .grid {
-            gap: 1rem;
-          }
-        }
-      `}</style>
+    <form onSubmit={handleSubmit}>
+      <div>
+        <label>Email</label>
+        <input name="email" type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required />
+      </div>
+      <div>
+        <label>Role</label>
+        <select name="role" value={role}
+          onChange={(e) => setRole(e.target.value)}>
+          <option value="admin">Admin</option>
+          <option value="user">User</option>
+        </select>
+      </div>
+      <button type="submit">Submit</button>
+    </form>
+  );
+}`;
 
-      <div className="container">
-        {/* Navbar */}
-        <nav className="navbar">
-          <div className="navbar-content">
-            <div className="navbar-inner">
-              <div className="logo">
-                <div className="logo-icon">
-                  <Braces style={{ width: '1.5rem', height: '1.5rem', color: 'white' }} />
-                </div>
-                <span className="logo-text">FormGen</span>
-              </div>
-              
-              <div className="nav-links">
-                <a href="https://github.com/pradnyeshbhalekar/formgen" className="nav-link" target="_blank" rel="noopener noreferrer">
-                  <Github size={18} />
-                  <span>GitHub</span>
-                </a>
-                <a href="https://pypi.org/project/pyformgen/" className="nav-link" target="_blank" rel="noopener noreferrer">
-                  <Package size={18} />
-                  <span>PyPI</span>
-                </a>
-                <a href="mailto:pradnyeshbhalekar78@gmail.com" className="nav-link">
-                  <Mail size={18} />
-                  <span>Contact</span>
-                </a>
-                <button onClick={toggleDarkMode} className="theme-toggle">
-                  {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-                </button>
-              </div>
-            </div>
-          </div>
-        </nav>
-
-        {/* Main Content */}
-        <div className="main-content">
-          <div className="grid">
-            
-            {/* Left Panel - JSON Input */}
-            <div className="panel">
-              <div className="panel-header">
-                <div className="panel-title">
-                  <div className="json-logo">{'{}'}</div>
-                  <h2>JSON Schema Input</h2>
-                </div>
-              </div>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                <textarea
-                  value={jsonInput}
-                  onChange={handleJsonChange}
-                  onKeyDown={handleKeyDown}
-                  className={`textarea ${!isValidJson ? 'textarea-invalid' : ''}`}
-                  placeholder="Enter your JSON schema here..."
-                />
-                
-                <button
-                  onClick={generateForm}
-                  disabled={isLoading || !isValidJson}
-                  className="generate-button"
-                >
-                  {isLoading ? (
-                    <>
-                      <div className="spinner"></div>
-                      <span>Generating...</span>
-                    </>
-                  ) : (
-                    <>
-                      <div className="json-logo" style={{ fontSize: '1rem', color: 'white' }}>{'{}'}</div>
-                      <span>Generate React Form</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Right Panel - JSX Output */}
-            <div className="panel">
-              <div className="panel-header">
-                <div className="panel-title">
-                  <div className="jsx-logo">&lt;/&gt;</div>
-                  <h2>Generated React JSX</h2>
-                </div>
-                {generatedJSX && (
-                  <button onClick={copyToClipboard} className="copy-button">
-                    <Copy size={16} />
-                    <span>{copySuccess ? 'Copied!' : 'Copy Code'}</span>
-                  </button>
-                )}
-              </div>
-              
-              <div className="output-area">
-                {error && (
-                  <div className="error">
-                    <AlertCircle size={20} />
-                    <span>{error}</span>
-                  </div>
-                )}
-                
-                {isLoading && (
-                  <div className="loading">
-                    <div className="loading-content">
-                      <div className="spinner"></div>
-                      <p>Generating Output.....</p>
-                    </div>
-                  </div>
-                )}
-                
-                {!isLoading && !error && generatedJSX && (
-                  <div className="code-output">
-                    <pre className="code">
-                      <code>{generatedJSX}</code>
-                    </pre>
-                  </div>
-                )}
-                
-                {!isLoading && !error && !generatedJSX && (
-                  <div className="empty-state">
-                    <div className="empty-state-content">
-                      <div className="empty-state-icon">&lt;/&gt;</div>
-                      <p>Generated JSX will appear here</p>
-                      <p style={{ fontSize: '0.9rem', marginTop: '0.5rem' }}>
-                        Enter a valid JSON schema and click "Generate"
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Footer */}
-          <footer className="footer">
-            <div className="footer-content">
-              <div className="footer-section">
-                <h3>Powered by pyformgen Python Library</h3>
-                <p>
-                  FormGen uses the pyformgen library to automatically convert JSON schemas into production-ready React forms.
-                  No manual coding required - just paste your schema and get instant JSX output!
-                </p>
-              </div>
-              
-              <div className="footer-section">
-                <h3>Connect & Resources</h3>
-                <div className="footer-links">
-                  <a href="https://github.com/pradnyeshbhalekar/formgen" className="footer-link" target="_blank" rel="noopener noreferrer">
-                    <Github size={20} />
-                    <div className="footer-link-text">
-                      <span className="footer-link-title">View Source Code</span>
-                      <span className="footer-link-desc">Contribute to the project</span>
-                    </div>
-                  </a>
-                  
-                  <a href="https://pypi.org/project/pyformgen/" className="footer-link" target="_blank" rel="noopener noreferrer">
-                    <Package size={20} />
-                    <div className="footer-link-text">
-                      <span className="footer-link-title">Python Package</span>
-                      <span className="footer-link-desc">Install via pip</span>
-                    </div>
-                  </a>
-                  
-                  <a href="mailto:pradnyeshbhalekar78@gmail.com" className="footer-link">
-                    <Mail size={20} />
-                    <div className="footer-link-text">
-                      <span className="footer-link-title">Contact Developer</span>
-                      <span className="footer-link-desc">Get support or feedback</span>
-                    </div>
-                  </a>
-                </div>
-              </div>
-            </div>
-          </footer>
+function HomePage({ onNavigate }) {
+  return (
+    <main className="main home-main">
+      {/* Hero */}
+      <section className="home-hero">
+        <div className="home-hero-glow" />
+        <h1 className="home-h1 anim fade-up d0">
+          Turn JSON schemas into<br />
+          <span className="gradient-text">React forms instantly</span>
+        </h1>
+        <p className="home-lead anim fade-up d1">
+          Describe your form in JSON. FormGen generates a complete React component with state, handlers, and submit logic — ready to drop into any project.
+        </p>
+        <div className="home-cta-row anim fade-up d2">
+          <button className="btn-primary" onClick={() => onNavigate('generator')}>
+            Try the Generator <ArrowRight size={15} />
+          </button>
+          <button className="btn-ghost" onClick={() => onNavigate('docs')}>
+            <BookOpen size={15} /> View Reference
+          </button>
         </div>
+      </section>
+
+      {/* Preview */}
+      <section className="home-preview">
+        <div className="preview-panel anim slide-l d3" style={{ animation: 'slideLeft 0.65s cubic-bezier(0.22,1,0.36,1) 300ms both, float 4s ease-in-out 1s infinite' }}>
+          <div className="preview-panel-header">
+            <span className="panel-dot json" /> JSON Schema
+          </div>
+          <pre className="preview-code light-code">{EXAMPLE_INPUT}</pre>
+        </div>
+        <div className="preview-arrow anim fade-in d4">
+          <ArrowRight size={20} />
+        </div>
+        <div className="preview-panel anim slide-r d3" style={{ animation: 'slideRight 0.65s cubic-bezier(0.22,1,0.36,1) 300ms both, float 4s ease-in-out 1.8s infinite' }}>
+          <div className="preview-panel-header">
+            <span className="panel-dot jsx" /> Generated JSX
+          </div>
+          <pre className="preview-code dark-code">{EXAMPLE_OUTPUT}</pre>
+        </div>
+      </section>
+
+      {/* Features */}
+      <section className="home-section">
+        <h2 className="home-section-title anim fade-up d4">Everything you need</h2>
+        <div className="features-grid">
+          {FEATURES.map((f, i) => (
+            <div className={`feature-card anim fade-up d${4 + i}`} key={f.title}>
+              <div className="feature-icon">{f.icon}</div>
+              <h3>{f.title}</h3>
+              <p>{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="home-section">
+        <h2 className="home-section-title anim fade-up d5">How it works</h2>
+        <div className="steps-grid">
+          {STEPS.map((s, i) => (
+            <div className={`step-card anim fade-up d${6 + i}`} key={s.n}>
+              <div className="step-number">{s.n}</div>
+              <h3>{s.title}</h3>
+              <p>{s.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* CTA strip */}
+      <section className="home-cta-strip anim fade-up d7">
+        <h2>Ready to build your form?</h2>
+        <p>No sign-up required. Paste a schema, generate, copy.</p>
+        <button className="btn-primary" onClick={() => onNavigate('generator')}>
+          Open Generator <ArrowRight size={15} />
+        </button>
+      </section>
+    </main>
+  );
+}
+
+// ── Docs page ─────────────────────────────────────────────────────────────────
+function DocsPage({ onTryInGenerator }) {
+  const [activeType, setActiveType] = useState(FIELD_TYPES[0].type);
+  const active = FIELD_TYPES.find(f => f.type === activeType);
+
+  return (
+    <div className="docs-layout">
+      <aside className="docs-sidebar">
+        <div className="docs-sidebar-section">
+          <p className="docs-sidebar-label">Field Types</p>
+          {FIELD_TYPES.map(f => (
+            <button key={f.type} className={`docs-nav-item${activeType === f.type ? ' active' : ''}`} onClick={() => setActiveType(f.type)}>
+              <code>{f.type}</code>
+            </button>
+          ))}
+        </div>
+        <div className="docs-sidebar-section">
+          <p className="docs-sidebar-label">Reference</p>
+          <button className={`docs-nav-item${activeType === '__attrs' ? ' active' : ''}`} onClick={() => setActiveType('__attrs')}>
+            All Attributes
+          </button>
+        </div>
+      </aside>
+
+      <div className="docs-content">
+        {activeType === '__attrs' ? (
+          <>
+            <h2 className="docs-title">All Supported Attributes</h2>
+            <p className="docs-desc">Every key besides <code>type</code> and <code>options</code> is passed directly as an HTML attribute to the generated <code>&lt;input&gt;</code> or <code>&lt;select&gt;</code>.</p>
+            <table className="attr-table">
+              <thead><tr><th>Key</th><th>Value type</th><th>Description</th></tr></thead>
+              <tbody>
+                {COMMON_ATTRS.map(a => (
+                  <tr key={a.name}><td><code>{a.name}</code></td><td><span className="attr-type">{a.type}</span></td><td>{a.desc}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        ) : (
+          <>
+            {/* Header */}
+            <div className="docs-field-header">
+              <div>
+                <code className="docs-type-badge">{active.type}</code>
+                <p className="docs-desc" style={{ marginTop: '0.75rem', marginBottom: 0 }}>{active.desc}</p>
+              </div>
+              <button className="btn-primary" style={{ fontSize: 12, padding: '7px 14px', whiteSpace: 'nowrap' }} onClick={() => onTryInGenerator(active.example)}>
+                Try in Generator <ArrowRight size={13} />
+              </button>
+            </div>
+
+            {/* Schema + Output side by side */}
+            <h3 className="docs-section-title">Schema → Output</h3>
+            <div className="docs-split">
+              <div className="docs-split-panel">
+                <div className="docs-split-label"><span className="panel-dot json" />JSON Schema</div>
+                <div className="docs-code-block"><pre><code>{active.example}</code></pre></div>
+              </div>
+              <div className="docs-split-panel">
+                <div className="docs-split-label"><span className="panel-dot jsx" />Generated JSX</div>
+                <div className="docs-code-block"><pre><code>{active.output}</code></pre></div>
+              </div>
+            </div>
+
+            {/* Attributes table */}
+            <h3 className="docs-section-title">Supported attributes</h3>
+            <table className="attr-table">
+              <thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
+              <tbody>
+                {active.attrs.map(a => (
+                  <tr key={a.name}>
+                    <td><code>{a.name}</code></td>
+                    <td><span className="attr-type">{a.type}</span></td>
+                    <td>{a.desc}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
       </div>
     </div>
   );
-};
+}
 
-export default FormGenerator;
+// ── CodeMirror light theme matching the site ───────────────────────────────────
+const lightTheme = EditorView.theme({
+  '&': { background: 'var(--surface)', color: 'var(--text)', height: '100%', fontSize: '12.5px' },
+  '.cm-content': { padding: '12px 0', fontFamily: "'SF Mono','Fira Code','Consolas',monospace", lineHeight: '1.65' },
+  '.cm-gutters': { background: 'var(--surface-2)', borderRight: '1px solid var(--border)', color: 'var(--text-faint)', minWidth: '42px' },
+  '.cm-lineNumbers .cm-gutterElement': { padding: '0 10px 0 6px', minWidth: '34px' },
+  '.cm-activeLine': { background: 'rgba(0,0,0,0.03)' },
+  '.cm-activeLineGutter': { background: 'var(--surface-3)' },
+  '.cm-cursor': { borderLeftColor: 'var(--accent)' },
+  '.cm-selectionBackground, ::selection': { background: 'var(--accent-subtle) !important' },
+  '.cm-matchingBracket': { background: 'var(--accent-subtle)', color: 'var(--accent) !important', fontWeight: '700' },
+  '.cm-foldPlaceholder': { background: 'var(--accent-subtle)', border: 'none', color: 'var(--accent)' },
+  '.cm-scroller': { overflow: 'auto' },
+}, { dark: false });
+
+// ── Generator page ────────────────────────────────────────────────────────────
+function GeneratorPage({ prefill, onPrefillUsed }) {
+  const [jsonInput, setJsonInput] = useState(DEFAULT_JSON);
+  const [generatedJSX, setGeneratedJSX] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [jsonValid, setJsonValid] = useState(true);
+  const [copied, setCopied] = useState(false);
+  const [darkMode] = useState(() => document.documentElement.classList.contains('dark'));
+
+  const handleChange = useCallback((val) => {
+    setJsonInput(val);
+    setJsonValid(isValidJson(val));
+    if (error) setError('');
+  }, [error]);
+
+  const generate = async () => {
+    if (!jsonValid) { setError('Invalid JSON'); return; }
+    setIsLoading(true); setError('');
+    try {
+      const res = await fetch(`${import.meta.env.VITE_BACKENDURI}/generatedOutput`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(JSON.parse(jsonInput)),
+      });
+      if (!res.ok) throw new Error(`${res.status}: ${await res.text() || res.statusText}`);
+      const data = await res.json();
+      setGeneratedJSX(data.jsx || '');
+    } catch (err) {
+      setError(err.message.includes('fetch') ? 'Cannot reach the server. Check your connection.' : err.message);
+    } finally { setIsLoading(false); }
+  };
+
+  const copyCode = async () => {
+    try { await navigator.clipboard.writeText(generatedJSX); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch {}
+  };
+
+  useEffect(() => {
+    if (prefill) { setJsonInput(prefill); setJsonValid(isValidJson(prefill)); onPrefillUsed(); }
+  }, [prefill]);
+
+  const lineCount = jsonInput.split('\n').length;
+  const outputLineCount = generatedJSX ? generatedJSX.split('\n').length : 0;
+
+  return (
+    <main className="main gen-main">
+      <div className="gen-header">
+        <div>
+          <h1 className="gen-title">Generator</h1>
+          <p className="gen-subtitle">Paste a JSON schema — get production-ready React JSX.</p>
+        </div>
+        <button className="btn-primary" onClick={generate} disabled={isLoading || !jsonValid} style={{ alignSelf: 'center' }}>
+          {isLoading ? <><div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Generating…</> : <><Logo size={15} /> Generate</>}
+        </button>
+      </div>
+
+      <div className="editor-grid">
+        {/* Input */}
+        <div className="panel">
+          <div className="panel-header">
+            <div className="panel-title"><span className="panel-dot json" />JSON Schema</div>
+            {!jsonValid
+              ? <span className="invalid-badge"><AlertCircle size={12} /> Invalid JSON</span>
+              : <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{lineCount} lines</span>
+            }
+          </div>
+          <div className={`cm-wrapper${!jsonValid ? ' invalid' : ''}`}>
+            <CodeMirror
+              value={jsonInput}
+              onChange={handleChange}
+              extensions={[json()]}
+              theme={darkMode ? oneDark : lightTheme}
+              basicSetup={{
+                lineNumbers: true,
+                foldGutter: true,
+                autocompletion: true,
+                bracketMatching: true,
+                closeBrackets: true,
+                indentOnInput: true,
+                highlightActiveLine: true,
+                highlightActiveLineGutter: true,
+                tabSize: 2,
+              }}
+              style={{ height: '100%' }}
+            />
+          </div>
+          <div className="panel-statusbar">
+            <span>Tab to indent · Brackets auto-close</span>
+            <span>{jsonValid ? '✓ Valid JSON' : '✗ Invalid JSON'}</span>
+          </div>
+        </div>
+
+        {/* Output */}
+        <div className="panel">
+          <div className="panel-header">
+            <div className="panel-title"><span className="panel-dot jsx" />Generated JSX</div>
+            {generatedJSX && (
+              <button className="copy-btn" onClick={copyCode}>
+                <Copy size={13} />{copied ? 'Copied!' : 'Copy'}
+              </button>
+            )}
+          </div>
+          {error && <div className="error-bar"><AlertCircle size={14} style={{ flexShrink: 0 }} />{error}</div>}
+          {isLoading && (
+            <div className="loading-state">
+              <div className="spinner" style={{ width: 22, height: 22 }} />
+              Generating your React component…
+            </div>
+          )}
+          {!isLoading && !error && generatedJSX && <div className="code-output"><pre><code>{generatedJSX}</code></pre></div>}
+          {!isLoading && !error && !generatedJSX && (
+            <div className="empty-state">
+              <Logo size={32} />
+              <span style={{ marginTop: 8 }}>Output appears here</span>
+              <span style={{ fontSize: 12, opacity: 0.5 }}>Fill in the schema and click Generate</span>
+            </div>
+          )}
+          {generatedJSX && (
+            <div className="panel-statusbar">
+              <span>{outputLineCount} lines generated</span>
+              <span style={{ color: 'var(--accent)' }}>✓ Ready to use</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </main>
+  );
+}
+
+// ── Root app ──────────────────────────────────────────────────────────────────
+export default function App() {
+  const [page, setPage] = useState('home');
+  const [darkMode, setDarkMode] = useState(false);
+  const [prefillJson, setPrefillJson] = useState(null);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode);
+  }, [darkMode]);
+
+  const tryInGenerator = (exampleSnippet) => {
+    const wrapped = `{\n  ${exampleSnippet.split('\n').join('\n  ')}\n}`;
+    setPrefillJson(wrapped);
+    setPage('generator');
+  };
+
+  return (
+    <div className="app">
+      {/* Navbar */}
+      <nav className="nav">
+        <button className="nav-brand" onClick={() => setPage('home')}>
+          <Logo size={26} />
+          <span>FormGen</span>
+        </button>
+          <div className="nav-actions">
+            <button className={`nav-btn${page === 'home' ? ' nav-btn-active' : ''}`} onClick={() => setPage('home')}>Home</button>
+            <button className={`nav-btn${page === 'generator' ? ' nav-btn-active' : ''}`} onClick={() => setPage('generator')}>Generator</button>
+            <button className={`nav-btn${page === 'docs' ? ' nav-btn-active' : ''}`} onClick={() => setPage('docs')}>
+              <BookOpen size={13} /><span>Reference</span>
+            </button>
+            <div className="nav-divider" />
+            <a href="https://github.com/pradnyeshbhalekar/formgen" className="nav-btn" target="_blank" rel="noopener noreferrer">
+              <Github size={14} /><span>GitHub</span>
+            </a>
+            <a href="https://pypi.org/project/pyformgen/" className="nav-btn" target="_blank" rel="noopener noreferrer">
+              <Package size={14} /><span>PyPI</span>
+            </a>
+            <div className="nav-divider" />
+            <button className="nav-btn icon-only" onClick={() => setDarkMode(d => !d)} title="Toggle theme">
+              {darkMode ? <Sun size={14} /> : <Moon size={14} />}
+            </button>
+          </div>
+        </nav>
+
+        {/* Pages */}
+        {page === 'home'      && <HomePage onNavigate={setPage} />}
+        {page === 'generator' && <GeneratorPage prefill={prefillJson} onPrefillUsed={() => setPrefillJson(null)} />}
+        {page === 'docs'      && (
+          <main className="main">
+            <div className="hero" style={{ paddingBottom: '1rem' }}>
+              <h1><span className="gradient-text">Schema</span> Reference</h1>
+              <p className="hero-sub">All supported field types and their configuration options.</p>
+            </div>
+            <DocsPage onTryInGenerator={tryInGenerator} />
+          </main>
+        )}
+
+        {/* Footer */}
+        <footer className="footer">
+          <div className="footer-inner">
+            <div className="footer-brand">
+              <button className="footer-logo-btn" onClick={() => setPage('home')}>
+                <Logo size={20} />
+                <span className="footer-brand-name">FormGen</span>
+              </button>
+              <p className="footer-tagline">JSON schema → production-ready React forms.<br />No setup. No sign-up. Just paste and generate.</p>
+            </div>
+
+            <div className="footer-cols">
+              <div className="footer-col">
+                <p className="footer-col-label">Product</p>
+                <button className="footer-link-btn" onClick={() => setPage('generator')}>Generator</button>
+                <button className="footer-link-btn" onClick={() => setPage('docs')}>Reference</button>
+                <button className="footer-link-btn" onClick={() => setPage('home')}>Home</button>
+              </div>
+              <div className="footer-col">
+                <p className="footer-col-label">Resources</p>
+                <a className="footer-link-btn" href="https://github.com/pradnyeshbhalekar/formgen" target="_blank" rel="noopener noreferrer">GitHub</a>
+                <a className="footer-link-btn" href="https://pypi.org/project/pyformgen/" target="_blank" rel="noopener noreferrer">PyPI Package</a>
+                <a className="footer-link-btn" href="mailto:pradnyeshbhalekar78@gmail.com">Contact</a>
+              </div>
+            </div>
+          </div>
+
+          <div className="footer-bottom">
+            <span>Built with pyformgen · MIT License</span>
+            <div className="footer-bottom-links">
+              <a href="https://github.com/pradnyeshbhalekar/formgen" target="_blank" rel="noopener noreferrer"><Github size={15} /></a>
+              <a href="https://pypi.org/project/pyformgen/" target="_blank" rel="noopener noreferrer"><Package size={15} /></a>
+              <a href="mailto:pradnyeshbhalekar78@gmail.com"><Mail size={15} /></a>
+            </div>
+          </div>
+        </footer>
+    </div>
+  );
+}
