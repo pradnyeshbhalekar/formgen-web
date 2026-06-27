@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Github, Copy, Package, AlertCircle, Moon, Sun, Mail, BookOpen, ArrowRight, Zap, Layers, Check, Code2 } from 'lucide-react';
+import { Github, Copy, Package, AlertCircle, Moon, Sun, Mail, BookOpen, ArrowRight, Zap, Layers, Check, Code2, Menu, X } from 'lucide-react';
 import CodeMirror, { EditorView } from '@uiw/react-codemirror';
 import { json } from '@codemirror/lang-json';
 import { oneDark } from '@codemirror/theme-one-dark';
@@ -587,44 +587,77 @@ export default function App() {
   const [page, setPage] = useState('home');
   const [darkMode, setDarkMode] = useState(false);
   const [prefillJson, setPrefillJson] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
 
+  // Close menu on page change
+  const navigate = (p) => { setPage(p); setMenuOpen(false); };
+
   const tryInGenerator = (exampleSnippet) => {
     const wrapped = `{\n  ${exampleSnippet.split('\n').join('\n  ')}\n}`;
     setPrefillJson(wrapped);
-    setPage('generator');
+    navigate('generator');
   };
 
   return (
     <div className="app">
       {/* Navbar */}
       <nav className="nav">
-        <button className="nav-brand" onClick={() => setPage('home')}>
+        <button className="nav-brand" onClick={() => navigate('home')}>
           <Logo size={26} />
           <span>FormGen</span>
         </button>
-          <div className="nav-actions">
-            <button className={`nav-btn${page === 'home' ? ' nav-btn-active' : ''}`} onClick={() => setPage('home')}>Home</button>
-            <button className={`nav-btn${page === 'generator' ? ' nav-btn-active' : ''}`} onClick={() => setPage('generator')}>Generator</button>
-            <button className={`nav-btn${page === 'docs' ? ' nav-btn-active' : ''}`} onClick={() => setPage('docs')}>
-              <BookOpen size={13} /><span>Reference</span>
-            </button>
-            <div className="nav-divider" />
-            <a href="https://github.com/pradnyeshbhalekar/formgen" className="nav-btn" target="_blank" rel="noopener noreferrer">
-              <Github size={14} /><span>GitHub</span>
-            </a>
-            <a href="https://pypi.org/project/pyformgen/" className="nav-btn" target="_blank" rel="noopener noreferrer">
-              <Package size={14} /><span>PyPI</span>
-            </a>
-            <div className="nav-divider" />
-            <button className="nav-btn icon-only" onClick={() => setDarkMode(d => !d)} title="Toggle theme">
-              {darkMode ? <Sun size={14} /> : <Moon size={14} />}
-            </button>
-          </div>
-        </nav>
+
+        {/* Desktop links */}
+        <div className="nav-actions nav-desktop">
+          <button className={`nav-btn${page === 'home' ? ' nav-btn-active' : ''}`} onClick={() => navigate('home')}>Home</button>
+          <button className={`nav-btn${page === 'generator' ? ' nav-btn-active' : ''}`} onClick={() => navigate('generator')}>Generator</button>
+          <button className={`nav-btn${page === 'docs' ? ' nav-btn-active' : ''}`} onClick={() => navigate('docs')}>
+            <BookOpen size={13} /><span>Reference</span>
+          </button>
+          <div className="nav-divider" />
+          <a href="https://github.com/pradnyeshbhalekar/formgen" className="nav-btn" target="_blank" rel="noopener noreferrer">
+            <Github size={14} /><span>GitHub</span>
+          </a>
+          <a href="https://pypi.org/project/pyformgen/" className="nav-btn" target="_blank" rel="noopener noreferrer">
+            <Package size={14} /><span>PyPI</span>
+          </a>
+          <div className="nav-divider" />
+          <button className="nav-btn icon-only" onClick={() => setDarkMode(d => !d)} title="Toggle theme">
+            {darkMode ? <Sun size={14} /> : <Moon size={14} />}
+          </button>
+        </div>
+
+        {/* Mobile right side */}
+        <div className="nav-mobile-right">
+          <button className="nav-btn icon-only" onClick={() => setDarkMode(d => !d)} title="Toggle theme">
+            {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
+          <button className="nav-btn icon-only" onClick={() => setMenuOpen(o => !o)} aria-label="Menu">
+            {menuOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
+        </div>
+      </nav>
+
+      {/* Mobile drawer */}
+      {menuOpen && (
+        <div className="mobile-drawer">
+          <button className={`mobile-nav-item${page === 'home' ? ' active' : ''}`} onClick={() => navigate('home')}>Home</button>
+          <button className={`mobile-nav-item${page === 'generator' ? ' active' : ''}`} onClick={() => navigate('generator')}>Generator</button>
+          <button className={`mobile-nav-item${page === 'docs' ? ' active' : ''}`} onClick={() => navigate('docs')}>Reference</button>
+          <div className="mobile-drawer-divider" />
+          <a className="mobile-nav-item" href="https://github.com/pradnyeshbhalekar/formgen" target="_blank" rel="noopener noreferrer">
+            <Github size={15} /> GitHub
+          </a>
+          <a className="mobile-nav-item" href="https://pypi.org/project/pyformgen/" target="_blank" rel="noopener noreferrer">
+            <Package size={15} /> PyPI
+          </a>
+        </div>
+      )}
+
 
         {/* Pages */}
         {page === 'home'      && <HomePage onNavigate={setPage} />}
